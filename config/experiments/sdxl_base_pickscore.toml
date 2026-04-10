@@ -1,0 +1,54 @@
+name = "sdxl-base-pickscore"
+
+[metadata]
+owner = "khoi"
+goal = "experiment orchestration example for SDXL base with evolution steering"
+
+[model]
+preset = "sdxl-base"
+torch_dtype = "float16"
+device = "cuda"
+enable_model_cpu_offload = true
+enable_vae_slicing = true
+enable_attention_slicing = true
+
+[reward]
+name = "pickscore"
+
+[steering]
+guidance_scale = 0.75
+max_update_norm = 3.0
+
+[steering.threshold]
+name = "quantile"
+quantile = 0.75
+
+[steering.gate]
+name = "density_ratio"
+temperature = 1.0
+min_scale = 0.1
+max_scale = 1.0
+
+[steering.kernel]
+name = "rbf"
+
+[steering.score_estimator]
+name = "good_set_mixture"
+temperature = 1.0
+chunk_size = 8
+
+[steering.step_window]
+min_fraction = 0.2
+max_fraction = 0.8
+
+[sampling]
+prompt = "cinematic photo of a futuristic city at sunrise"
+negative_prompt = "low quality, blurry, distorted"
+num_inference_steps = 30
+guidance_scale = 7.5
+num_particles = 4
+num_images_per_prompt = 1
+height = 256
+width = 256
+seed = 42
+output_type = "pt"
