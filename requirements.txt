@@ -1,0 +1,13 @@
+# Core runtime dependencies
+torch
+torchvision
+diffusers
+transformers
+Pillow
+numpy
+accelerate
+safetensors
+
+# Optional scorer integrations (install if you use corresponding scorers)
+ImageReward
+hpsv2
