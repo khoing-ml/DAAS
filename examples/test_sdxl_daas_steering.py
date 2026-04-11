@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 
 # Allow `python examples/test_sdxl_daas_steering.py` without installing the package.
@@ -125,6 +126,41 @@ def main() -> None:
     # Log progress at end of generation
     run_logger.log_metrics(step=args.steps, generation_complete=True)
 
+    # Compute reward scores
+    logger.info("Computing reward scores...")
+    reward_stats = None
+    try:
+        # Convert PIL images to tensor for reward function
+        image_tensors = []
+        for pil_img in images:
+            # Ensure image is RGB
+            if pil_img.mode != "RGB":
+                pil_img = pil_img.convert("RGB")
+            # Convert to tensor: (H, W, 3) -> (1, 3, H, W)
+            img_array = torch.from_numpy(
+                np.array(pil_img, dtype=np.float32) / 255.0
+            ).permute(2, 0, 1).unsqueeze(0)
+            image_tensors.append(img_array)
+        
+        image_batch = torch.cat(image_tensors, dim=0).to(device)
+        
+        # Call reward function
+        with torch.no_grad():
+            rewards = reward_fn(
+                images=image_batch,
+                prompts=[args.prompt] * len(images),
+            )
+        
+        # Ensure rewards is 1D tensor
+        if rewards.ndim > 1:
+            rewards = rewards.squeeze()
+        
+        # Log reward statistics
+        reward_stats = run_logger.log_reward_stats(rewards, prefix="reward")
+        logger.info(f"Reward stats: {reward_stats}")
+    except Exception as e:
+        logger.warning(f"Failed to compute reward scores: {e}")
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     images[0].save(out_path)
@@ -137,6 +173,11 @@ def main() -> None:
         "reward_name": args.reward_name,
         "steering_guidance_scale": args.steering_guidance_scale,
     }
+    
+    # Add reward stats to summary if computed
+    if reward_stats is not None:
+        summary.update(reward_stats)
+    
     run_logger.write_summary(**summary)
 
     logger.info(f"DAAS-guided SDXL smoke test completed")
