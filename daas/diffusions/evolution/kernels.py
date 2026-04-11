@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Protocol
 
 import torch
 
@@ -11,6 +11,12 @@ def _compute_dtype(tensor: torch.Tensor) -> torch.dtype:
     if tensor.dtype in (torch.float16, torch.bfloat16):
         return torch.float32
     return tensor.dtype
+
+
+class Kernel(Protocol):
+    def kernel_matrix(self, particles: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]: ...
+
+    def score_correction(self, particles: torch.Tensor, kernel_matrix: torch.Tensor, bandwidth: torch.Tensor) -> torch.Tensor: ...
 
 
 @dataclass(frozen=True)
@@ -41,24 +47,16 @@ class RBFKernel:
         heuristic = median_distance / math.log(num_particles + 1.0)
         return heuristic.clamp_min(self.min_bandwidth)
 
-    def vector_field(self, particles: torch.Tensor, target_score: torch.Tensor) -> torch.Tensor:
-        if particles.shape != target_score.shape:
-            raise ValueError("particles and target_score must share the same shape")
+    def kernel_matrix(self, particles: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        bandwidth = self.resolve_bandwidth(particles)
+        squared_distances = torch.cdist(particles, particles).square()
+        return torch.exp(-squared_distances / bandwidth), bandwidth
 
-        compute_dtype = _compute_dtype(particles)
-        flat_particles = particles.flatten(start_dim=1).to(dtype=compute_dtype)
-        flat_score = target_score.flatten(start_dim=1).to(dtype=compute_dtype)
-
-        num_particles = flat_particles.shape[0]
-        if num_particles == 1:
-            return target_score
-
-        bandwidth = self.resolve_bandwidth(flat_particles)
-        squared_distances = torch.cdist(flat_particles, flat_particles).square()
-        kernel_matrix = torch.exp(-squared_distances / bandwidth)
-        pairwise_diff = flat_particles[:, None, :] - flat_particles[None, :, :]
-
-        attractive = kernel_matrix @ flat_score
-        repulsive = (2.0 / bandwidth) * (pairwise_diff * kernel_matrix.unsqueeze(-1)).sum(dim=1)
-        field = (attractive + repulsive) / num_particles
-        return field.to(dtype=particles.dtype).reshape_as(particles)
+    def score_correction(
+        self,
+        particles: torch.Tensor,
+        kernel_matrix: torch.Tensor,
+        bandwidth: torch.Tensor,
+    ) -> torch.Tensor:
+        pairwise_diff = particles[:, None, :] - particles[None, :, :]
+        return (2.0 / bandwidth) * (pairwise_diff * kernel_matrix.unsqueeze(-1)).sum(dim=1)

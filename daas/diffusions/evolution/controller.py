@@ -9,6 +9,7 @@ from daas.diffusions.evolution.gating import ConstantGate
 from daas.diffusions.evolution.kernels import RBFKernel
 from daas.diffusions.evolution.score_estimators import GoodSetScoreEstimator, ScoreEstimator
 from daas.diffusions.evolution.schedules import DiffusionSchedule
+from daas.diffusions.evolution.stein import SteinVectorField
 from daas.diffusions.evolution.thresholds import QuantileThreshold
 from daas.diffusions.evolution.trajectories import EvolutionState, TrajectoryBatch
 
@@ -64,6 +65,7 @@ class EvolutionSteerer:
         threshold_policy: Optional[object] = None,
         score_estimator: Optional[ScoreEstimator] = None,
         kernel: Optional[RBFKernel] = None,
+        vector_field: Optional[SteinVectorField] = None,
         gate: Optional[object] = None,
         guidance_scale: float = 1.0,
         step_window: Optional[StepWindow] = None,
@@ -78,6 +80,7 @@ class EvolutionSteerer:
         self.threshold_policy = threshold_policy or QuantileThreshold(quantile=0.75)
         self.score_estimator = score_estimator or GoodSetScoreEstimator(schedule=schedule)
         self.kernel = kernel or RBFKernel()
+        self.vector_field = vector_field or SteinVectorField(kernel=self.kernel)
         self.gate = gate or ConstantGate(scale=1.0)
         self.guidance_scale = float(guidance_scale)
         self.step_window = step_window
@@ -123,7 +126,7 @@ class EvolutionSteerer:
             return self._zero_output(latents, step)
 
         target_score = self.score_estimator.score(latents, step, state.good_clean_samples)
-        vector_field = self.kernel.vector_field(latents, target_score)
+        vector_field = self.vector_field.vector_field(latents, target_score)
         gate = self.gate(
             latents,
             step,

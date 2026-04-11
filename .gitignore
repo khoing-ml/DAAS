@@ -54,3 +54,6 @@ tmp/
 # Local environment files
 .env
 .env.*
+
+
+.codex

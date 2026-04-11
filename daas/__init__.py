@@ -19,6 +19,7 @@ from daas.diffusions import (
     QuantileThreshold,
     RBFKernel,
     SecondBestThreshold,
+    SteinVectorField,
     SteeringOutput,
     StepWindow,
     TopKThreshold,
@@ -49,6 +50,13 @@ from daas.experiments import (
     load_experiment_config,
     load_raw_config,
 )
+from daas.simple import (
+    SimpleInferenceComponents,
+    build_simple_inference_components,
+    build_simple_steerer,
+    load_huggingface_pipeline,
+    load_preset_pipeline,
+)
 
 __all__ = [
     "ConstantGate",
@@ -78,7 +86,9 @@ __all__ = [
     "RBFKernel",
     "RewardConfig",
     "SamplingConfig",
+    "SimpleInferenceComponents",
     "SecondBestThreshold",
+    "SteinVectorField",
     "SteeringOutput",
     "SteeringConfig",
     "StepWindow",
@@ -88,11 +98,15 @@ __all__ = [
     "TrajectoryRecorder",
     "build_experiment_components",
     "build_experiment_config",
+    "build_simple_inference_components",
+    "build_simple_steerer",
     "create_run_logger",
     "huggingface_source",
+    "load_huggingface_pipeline",
     "local_directory_source",
     "load_experiment_config",
     "load_raw_config",
+    "load_preset_pipeline",
     "make_preset",
     "sd15_text2image",
     "sdxl_base_text2image",

@@ -3,6 +3,7 @@ from daas.diffusions.evolution.gating import ConstantGate, DensityRatioGate
 from daas.diffusions.evolution.kernels import RBFKernel
 from daas.diffusions.evolution.schedules import DiffusionSchedule
 from daas.diffusions.evolution.score_estimators import GoodSetScoreEstimator, KernelDensityScoreEstimator
+from daas.diffusions.evolution.stein import SteinVectorField
 from daas.diffusions.evolution.thresholds import (
     FixedThreshold,
     QuantileThreshold,
@@ -29,6 +30,7 @@ __all__ = [
     "QuantileThreshold",
     "RBFKernel",
     "SecondBestThreshold",
+    "SteinVectorField",
     "SteeringOutput",
     "StepWindow",
     "TopKThreshold",
