@@ -25,6 +25,22 @@ def main() -> None:
     # Load config
     config = load_experiment_config(str(config_path))
     
+    # Resolve device: auto -> cuda if available, else cpu
+    device = config.model.device
+    if device == "auto" or device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    elif device == "cuda" and not torch.cuda.is_available():
+        logger_msg = "WARNING: CUDA requested but not available, falling back to CPU"
+        print(logger_msg)
+        device = "cpu"
+    
+    # Adjust dtype for CPU (use float32 if device is cpu)
+    torch_dtype = config.model.torch_dtype
+    if device == "cpu" and torch_dtype in {"float16", "fp16", "bfloat16", "bf16"}:
+        dtype_msg = f"WARNING: {torch_dtype} requested on CPU, using float32 instead"
+        print(dtype_msg)
+        torch_dtype = "float32"
+    
     # Initialize logger
     log_config = config.metadata.get("log_config", {}) if hasattr(config, "metadata") else {}
     log_dir = config.sampling.output_dir or "logs"
@@ -59,18 +75,26 @@ def main() -> None:
     
     logger.info(f"Loaded config: {config.name}")
     logger.info(f"Model preset: {config.model.preset}")
+    logger.info(f"Device: {device} (requested: {config.model.device})")
+    logger.info(f"Dtype: {torch_dtype} (requested: {config.model.torch_dtype})")
     logger.info(f"Reward: {config.reward.component.name}")
     
     # Build experiment components
     logger.info("Building experiment components...")
     factory = ExperimentFactory()
-    components = factory.build_experiment(config)
+    
+    # Override config device and dtype with resolved values
+    from dataclasses import replace
+    resolved_config = replace(
+        config,
+        model=replace(config.model, device=device, torch_dtype=torch_dtype)
+    )
+    
+    components = factory.build_experiment(resolved_config)
     
     bundle = components.pipeline_bundle
     reward_fn = components.reward_fn
     steerer = components.steerer
-    
-    device = config.model.device or ("cuda" if torch.cuda.is_available() else "cpu")
     
     logger.info(f"Running inference: {config.sampling.prompt}")
     

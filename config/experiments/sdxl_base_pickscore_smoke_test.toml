@@ -8,7 +8,7 @@ description = "Lightweight test run to verify pipeline loading, inference, and r
 [model]
 preset = "sdxl-base"
 torch_dtype = "float16"
-device = "cuda"
+device = "auto"
 enable_model_cpu_offload = true
 enable_vae_slicing = true
 enable_attention_slicing = true
