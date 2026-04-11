@@ -1,0 +1,54 @@
+name = "sdxl-base-pickscore-smoke-test"
+
+[metadata]
+owner = "khoi"
+goal = "SDXL with PickScore reward smoke test for DAAS evolution steering"
+description = "Lightweight test run to verify pipeline loading, inference, and reward computation"
+
+[model]
+preset = "sdxl-base"
+torch_dtype = "float16"
+device = "cuda"
+enable_model_cpu_offload = true
+enable_vae_slicing = true
+enable_attention_slicing = true
+
+[reward]
+name = "pickscore"
+
+[steering]
+guidance_scale = 0.75
+max_update_norm = 3.0
+
+[steering.threshold]
+name = "quantile"
+quantile = 0.75
+
+[steering.gate]
+name = "constant"
+scale = 1.0
+
+[steering.kernel]
+name = "rbf"
+
+[steering.score_estimator]
+name = "good_set_mixture"
+temperature = 1.0
+
+[steering.step_window]
+min_fraction = 0.2
+max_fraction = 0.8
+
+[sampling]
+prompt = "cinematic photo of a futuristic city at sunrise"
+negative_prompt = "low quality, blurry, distorted"
+num_inference_steps = 12
+guidance_scale = 7.0
+height = 256
+width = 256
+seed = 42
+output_type = "pil"
+
+[logging]
+log_dir = "logs"
+run_name = "smoke_test"
