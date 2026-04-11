@@ -41,11 +41,17 @@ class PickScoreScorer(torch.nn.Module):
             return_tensors="pt",
         ).to(self.device)
         text_embeds = self.model.get_text_features(**text_inputs)
+        # Extract tensor if model returns a BaseModelOutputWithPooling object
+        if hasattr(text_embeds, 'pooler_output'):
+            text_embeds = text_embeds.pooler_output
         text_embeds = text_embeds / torch.norm(text_embeds, dim=-1, keepdim=True)
 
         pil_images = _as_pil_images(images)
         inputs = self.processor(images=pil_images, return_tensors="pt").pixel_values.to(self.device, dtype=self.dtype)
         image_embeds = self.model.get_image_features(pixel_values=inputs)
+        # Extract tensor if model returns a BaseModelOutputWithPooling object
+        if hasattr(image_embeds, 'pooler_output'):
+            image_embeds = image_embeds.pooler_output
         image_embeds = image_embeds / torch.norm(image_embeds, dim=-1, keepdim=True)
         logits_per_image = image_embeds @ text_embeds.T
         scores = torch.diagonal(logits_per_image)
