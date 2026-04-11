@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out",
         type=str,
-        default="assets/sdxl_smoke_test.png",
+        default="outputs/sdxl_smoke_test.png",
         help="Output image path.",
     )
     return parser.parse_args()
