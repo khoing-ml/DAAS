@@ -1,7 +1,23 @@
 import os
 import torch
+from PIL import Image
 from transformers import AutoModel, CLIPProcessor
-import torchvision
+
+
+def _as_pil_images(images):
+    if isinstance(images, Image.Image):
+        return [images]
+    if isinstance(images, torch.Tensor):
+        tensor = images.detach().cpu()
+        if tensor.ndim != 4:
+            raise ValueError("images tensor must have shape (batch, channels, height, width)")
+        if tensor.dtype.is_floating_point:
+            if tensor.min() < 0:
+                tensor = ((tensor / 2) + 0.5).clamp(0, 1)
+            tensor = (tensor * 255).round().clamp(0, 255).to(torch.uint8)
+        tensor = tensor.permute(0, 2, 3, 1).contiguous()
+        return [Image.fromarray(sample.numpy()) for sample in tensor]
+    return [image if isinstance(image, Image.Image) else Image.fromarray(image) for image in images]
 
 
 class PickScoreScorer(torch.nn.Module):
@@ -16,10 +32,6 @@ class PickScoreScorer(torch.nn.Module):
         # checkpoint_path = f"{os.path.expanduser('~')}/.cache/PickScore_v1"
         self.model = AutoModel.from_pretrained(checkpoint_path).eval().to(self.device, dtype=self.dtype)
 
-        self.target_size =  224
-        self.normalize = torchvision.transforms.Normalize(mean=[0.48145466, 0.4578275, 0.40821073],
-                                                    std=[0.26862954, 0.26130258, 0.27577711])
-
     def __call__(self, images, prompts):
         text_inputs = self.processor(
             text=prompts,
@@ -31,8 +43,8 @@ class PickScoreScorer(torch.nn.Module):
         text_embeds = self.model.get_text_features(**text_inputs)
         text_embeds = text_embeds / torch.norm(text_embeds, dim=-1, keepdim=True)
 
-        inputs = torchvision.transforms.Resize(self.target_size)(images)
-        inputs = self.normalize(inputs).to(self.dtype)
+        pil_images = _as_pil_images(images)
+        inputs = self.processor(images=pil_images, return_tensors="pt").pixel_values.to(self.device, dtype=self.dtype)
         image_embeds = self.model.get_image_features(pixel_values=inputs)
         image_embeds = image_embeds / torch.norm(image_embeds, dim=-1, keepdim=True)
         logits_per_image = image_embeds @ text_embeds.T

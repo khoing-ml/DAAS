@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
+from dataclasses import replace
 
 import torch
 
@@ -84,10 +85,15 @@ def main() -> None:
     factory = ExperimentFactory()
     
     # Override config device and dtype with resolved values
-    from dataclasses import replace
     resolved_config = replace(
         config,
-        model=replace(config.model, device=device, torch_dtype=torch_dtype)
+        model=replace(
+            config.model,
+            device=device,
+            torch_dtype=torch_dtype,
+            enable_model_cpu_offload=False if device == "cpu" else config.model.enable_model_cpu_offload,
+            enable_sequential_cpu_offload=False if device == "cpu" else config.model.enable_sequential_cpu_offload,
+        ),
     )
     
     components = factory.build_experiment(resolved_config)
