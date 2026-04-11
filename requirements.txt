@@ -9,5 +9,5 @@ accelerate
 safetensors
 
 # Optional scorer integrations (install if you use corresponding scorers)
-ImageReward
+ImageReward @ git+https://github.com/zai-org/ImageReward.git    
 hpsv2
