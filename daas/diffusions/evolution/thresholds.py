@@ -43,7 +43,9 @@ class QuantileThreshold:
 
     def split(self, rewards: torch.Tensor) -> SplitResult:
         _validate_rewards(rewards)
-        threshold = torch.quantile(rewards, self.quantile)
+        # quantile is not implemented for all dtypes (e.g. fp16/bf16 on some backends).
+        rewards_for_quantile = rewards.to(dtype=torch.float32)
+        threshold = torch.quantile(rewards_for_quantile, self.quantile).to(dtype=rewards.dtype)
         good_mask = _ensure_non_empty_good(rewards, rewards >= threshold)
         return threshold, good_mask, ~good_mask
 
