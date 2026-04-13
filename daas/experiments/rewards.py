@@ -29,7 +29,15 @@ def build_reward_function(name: str, *, inference_dtype: Any = None, device: Any
         return scorer
 
     if normalized == "imagereward":
-        from daas.scorers.ImageReward_scorer import ImageRewardScorer
+        try:
+            from daas.scorers.ImageReward_scorer import ImageRewardScorer
+        except ModuleNotFoundError as exc:
+            if exc.name == "clip":
+                raise ModuleNotFoundError(
+                    "ImageReward requires the OpenAI CLIP package. Install it with: "
+                    "pip install git+https://github.com/openai/CLIP.git"
+                ) from exc
+            raise
 
         scorer = ImageRewardScorer(inference_dtype, device)
         scorer.requires_grad_(False)
