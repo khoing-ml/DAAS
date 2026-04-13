@@ -1,0 +1,65 @@
+name = "sdxl-base-imagereward"
+
+[metadata]
+owner = "khoi"
+goal = "Full SDXL experiment with ImageReward and IR-SEG"
+description = "Non-smoke configuration for real experiment runs and comparison against other reward models"
+
+[model]
+preset = "sdxl-base"
+torch_dtype = "float16"
+device = "cuda"
+enable_model_cpu_offload = true
+enable_vae_slicing = true
+enable_attention_slicing = true
+
+[reward]
+name = "imagereward"
+
+[steering]
+guidance_scale = 0.8
+max_update_norm = 3.0
+
+[steering.threshold]
+name = "quantile"
+quantile = 0.75
+
+[steering.gate]
+name = "density_ratio"
+temperature = 1.0
+min_scale = 0.1
+max_scale = 1.0
+
+[steering.kernel]
+name = "rbf"
+
+[steering.score_estimator]
+name = "kde"
+bandwidth = 1.0
+chunk_size = 8
+
+[steering.step_window]
+min_fraction = 0.2
+max_fraction = 0.8
+
+[sampling]
+prompt = "cinematic photo of a futuristic city at sunrise"
+negative_prompt = "low quality, blurry, distorted"
+num_inference_steps = 30
+guidance_scale = 7.5
+num_particles = 8
+num_images_per_prompt = 1
+height = 512
+width = 512
+seed = 42
+output_type = "pil"
+seg_loops = 3
+seg_elite_keep = 2
+seg_noise_scale = 0.03
+seg_use_intermediate_rewards = true
+seg_inner_stein_steps = 2
+seg_intermediate_reward_output_type = "pt"
+
+[logging]
+log_dir = "logs"
+run_name = "imagereward_full"
