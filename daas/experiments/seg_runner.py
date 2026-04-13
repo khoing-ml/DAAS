@@ -145,6 +145,9 @@ class SegInferenceRunner:
             control_step = step_values[len(step_values) // 2]
 
         prompts = [sampling.prompt] * batch_size
+        negative_prompts = None
+        if sampling.negative_prompt is not None:
+            negative_prompts = [sampling.negative_prompt] * batch_size
         loop_metrics: List[Dict[str, Any]] = []
         final_rewards: torch.Tensor | None = None
 
@@ -228,6 +231,8 @@ class SegInferenceRunner:
 
             run_kwargs: Dict[str, Any] = {
                 **common_kwargs,
+                "prompt": prompts,
+                "negative_prompt": negative_prompts,
                 "latents": population,
                 "output_type": "latent",
             }
@@ -245,6 +250,8 @@ class SegInferenceRunner:
                     # Older diffusers pipelines may not expose callback_on_step_end.
                     fallback_kwargs = {
                         **common_kwargs,
+                        "prompt": prompts,
+                        "negative_prompt": negative_prompts,
                         "latents": population,
                         "output_type": "latent",
                     }
