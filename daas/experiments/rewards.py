@@ -21,7 +21,7 @@ def build_reward_function(name: str, *, inference_dtype: Any = None, device: Any
 
         return aesthetic_score(torch_dtype=inference_dtype, device=device, **kwargs)
 
-    if normalized == "pickscore":
+    if normalized in {"pickscore", "picklescore"}:
         from daas.scorers.PickScore_scorer import PickScoreScorer
 
         scorer = PickScoreScorer(inference_dtype, device)

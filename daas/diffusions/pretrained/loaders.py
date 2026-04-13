@@ -26,9 +26,9 @@ class DiffusersPipelineLoader:
     """
 
     PIPELINE_CLASS_BY_TASK = {
-        PipelineTask.TEXT_TO_IMAGE: "AutoPipelineForText2Image",
-        PipelineTask.IMAGE_TO_IMAGE: "AutoPipelineForImage2Image",
-        PipelineTask.INPAINT: "AutoPipelineForInpainting",
+        PipelineTask.TEXT_TO_IMAGE: "StableDiffusionXLPipeline",
+        PipelineTask.IMAGE_TO_IMAGE: "StableDiffusionXLImg2ImgPipeline",
+        PipelineTask.INPAINT: "StableDiffusionXLInpaintPipeline",
     }
 
     def resolve_pipeline_class_name(self, spec: PipelineSpec) -> str:
@@ -69,8 +69,12 @@ class DiffusersPipelineLoader:
     def _apply_runtime_options(self, pipeline: Any, spec: PipelineSpec) -> Any:
         if spec.enable_attention_slicing and hasattr(pipeline, "enable_attention_slicing"):
             pipeline.enable_attention_slicing()
-        if spec.enable_vae_slicing and hasattr(pipeline, "enable_vae_slicing"):
-            pipeline.enable_vae_slicing()
+        if spec.enable_vae_slicing:
+            vae = getattr(pipeline, "vae", None)
+            if vae is not None and hasattr(vae, "enable_slicing"):
+                vae.enable_slicing()
+            elif hasattr(pipeline, "enable_vae_slicing"):
+                pipeline.enable_vae_slicing()
         if spec.enable_xformers and hasattr(pipeline, "enable_xformers_memory_efficient_attention"):
             pipeline.enable_xformers_memory_efficient_attention()
 

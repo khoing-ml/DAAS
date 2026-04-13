@@ -10,7 +10,7 @@ def sdxl_base_text2image(source: ModelSource | None = None, **overrides: object)
     spec = PipelineSpec(
         source=source or huggingface_source("stabilityai/stable-diffusion-xl-base-1.0", use_safetensors=True),
         task=PipelineTask.TEXT_TO_IMAGE,
-        pipeline_class="AutoPipelineForText2Image",
+        pipeline_class="StableDiffusionXLPipeline",
     )
     return spec.with_overrides(**overrides)
 
@@ -19,7 +19,7 @@ def sdxl_turbo_text2image(source: ModelSource | None = None, **overrides: object
     spec = PipelineSpec(
         source=source or huggingface_source("stabilityai/sdxl-turbo", use_safetensors=True),
         task=PipelineTask.TEXT_TO_IMAGE,
-        pipeline_class="AutoPipelineForText2Image",
+        pipeline_class="StableDiffusionXLPipeline",
     )
     return spec.with_overrides(**overrides)
 
@@ -28,7 +28,7 @@ def sd15_text2image(source: ModelSource | None = None, **overrides: object) -> P
     spec = PipelineSpec(
         source=source or huggingface_source("runwayml/stable-diffusion-v1-5", use_safetensors=True),
         task=PipelineTask.TEXT_TO_IMAGE,
-        pipeline_class="AutoPipelineForText2Image",
+        pipeline_class="StableDiffusionPipeline",
     )
     return spec.with_overrides(**overrides)
 

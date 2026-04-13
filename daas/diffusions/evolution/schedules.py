@@ -64,7 +64,8 @@ class DiffusionSchedule:
     def from_diffusers_scheduler(cls, scheduler: object) -> "DiffusionSchedule":
         if not hasattr(scheduler, "betas"):
             raise ValueError("scheduler must expose a `betas` attribute")
-        kind = getattr(scheduler, "beta_schedule", "diffusers")
+        config = getattr(scheduler, "config", None)
+        kind = getattr(config, "beta_schedule", "diffusers") if config is not None else "diffusers"
         return cls.from_betas(torch.as_tensor(scheduler.betas), kind=str(kind))
 
     def resolve_step(self, step: StepLike) -> int:

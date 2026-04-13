@@ -2,7 +2,7 @@
 torch
 torchvision
 diffusers
-transformers==4.33.2
+transformers
 Pillow
 numpy
 accelerate
