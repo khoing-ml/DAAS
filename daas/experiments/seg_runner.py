@@ -69,8 +69,24 @@ class SegInferenceRunner:
 
     def _pipeline_common_kwargs(self) -> Dict[str, Any]:
         sampling = self.components.config.sampling
+        # These keys are controlled explicitly by the runner for latent-population inference.
+        reserved_keys = {
+            "prompt",
+            "negative_prompt",
+            "prompt_embeds",
+            "negative_prompt_embeds",
+            "pooled_prompt_embeds",
+            "negative_pooled_prompt_embeds",
+            "latents",
+            "num_images_per_prompt",
+            "output_type",
+            "callback_on_step_end",
+            "callback_on_step_end_tensor_inputs",
+        }
         passthrough_kwargs = {
-            key: value for key, value in sampling.extra_kwargs.items() if not str(key).startswith("seg_")
+            key: value
+            for key, value in sampling.extra_kwargs.items()
+            if not str(key).startswith("seg_") and key not in reserved_keys
         }
         return {
             "prompt": sampling.prompt,
@@ -236,6 +252,15 @@ class SegInferenceRunner:
                 "latents": population,
                 "output_type": "latent",
             }
+
+            for key in ("prompt_2", "negative_prompt_2"):
+                value = run_kwargs.get(key)
+                if isinstance(value, str):
+                    run_kwargs[key] = [value] * batch_size
+                elif isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+                    value_list = list(value)
+                    if len(value_list) == 1 and batch_size > 1:
+                        run_kwargs[key] = value_list * batch_size
 
             if use_intermediate_rewards:
                 run_kwargs["callback_on_step_end"] = _step_callback
