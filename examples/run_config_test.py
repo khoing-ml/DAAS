@@ -100,7 +100,6 @@ def main() -> None:
     
     bundle = components.pipeline_bundle
     reward_fn = components.reward_fn
-    steerer = components.steerer
     
     logger.info(f"Running inference: {config.sampling.prompt}")
     

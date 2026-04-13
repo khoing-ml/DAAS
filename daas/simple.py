@@ -4,13 +4,8 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from daas.diffusions.evolution import (
-    ConstantGate,
-    DensityRatioGate,
     EvolutionSteerer,
-    GoodSetScoreEstimator,
-    KernelDensityScoreEstimator,
     QuantileThreshold,
-    RBFKernel,
     StepWindow,
 )
 from daas.diffusions.pretrained import (
@@ -20,6 +15,11 @@ from daas.diffusions.pretrained import (
     PipelineSpec,
     huggingface_source,
     make_preset,
+)
+from daas.experiments.component_builders import (
+    build_gate_component,
+    build_kernel_component,
+    build_score_estimator_component,
 )
 from daas.experiments.rewards import build_reward_function
 
@@ -133,34 +133,35 @@ def build_simple_steerer(
     max_step: Optional[int] = None,
     max_update_norm: Optional[float] = None,
 ) -> EvolutionSteerer:
+    estimator_kwargs: dict[str, Any] = {
+        "chunk_size": estimator_chunk_size,
+    }
     normalized_estimator = score_estimator.strip().lower()
     if normalized_estimator in {"mixture", "good_set_mixture"}:
-        estimator = GoodSetScoreEstimator(
-            schedule=schedule,
-            temperature=estimator_temperature,
-            chunk_size=estimator_chunk_size,
-        )
+        estimator_kwargs["temperature"] = estimator_temperature
+        estimator_name = "good_set_mixture"
     elif normalized_estimator in {"kde", "kernel_density"}:
-        estimator = KernelDensityScoreEstimator(
-            schedule=schedule,
-            bandwidth=estimator_bandwidth,
-            chunk_size=estimator_chunk_size,
-        )
+        estimator_kwargs["bandwidth"] = estimator_bandwidth
+        estimator_name = "kde"
     else:
         raise KeyError(f"unsupported score estimator: {score_estimator}")
+    estimator_kwargs = {k: v for k, v in estimator_kwargs.items() if v is not None}
+    estimator = build_score_estimator_component(estimator_name, schedule=schedule, kwargs=estimator_kwargs)
 
+    gate_kwargs = {
+        "scale": 1.0,
+    }
     normalized_gate = gate.strip().lower()
-    if normalized_gate == "constant":
-        gate_module = ConstantGate(scale=1.0)
-    elif normalized_gate == "density_ratio":
-        gate_module = DensityRatioGate(
-            temperature=gate_temperature,
-            bias=gate_bias,
-            min_scale=gate_min_scale,
-            max_scale=gate_max_scale,
-        )
-    else:
+    if normalized_gate == "density_ratio":
+        gate_kwargs = {
+            "temperature": gate_temperature,
+            "bias": gate_bias,
+            "min_scale": gate_min_scale,
+            "max_scale": gate_max_scale,
+        }
+    elif normalized_gate != "constant":
         raise KeyError(f"unsupported gate: {gate}")
+    gate_module = build_gate_component(normalized_gate, gate_kwargs)
 
     step_window = None
     if min_step is not None or max_step is not None:
@@ -170,7 +171,7 @@ def build_simple_steerer(
         schedule=schedule,
         threshold_policy=QuantileThreshold(quantile=threshold_quantile),
         score_estimator=estimator,
-        kernel=RBFKernel(bandwidth=kernel_bandwidth),
+        kernel=build_kernel_component("rbf", {"bandwidth": kernel_bandwidth}),
         gate=gate_module,
         guidance_scale=guidance_scale,
         step_window=step_window,

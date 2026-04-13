@@ -6,13 +6,8 @@ from typing import Optional, Protocol
 
 import torch
 
+from daas.diffusions.evolution.kernels import _compute_dtype
 from daas.diffusions.evolution.schedules import DiffusionSchedule
-
-
-def _compute_dtype(tensor: torch.Tensor) -> torch.dtype:
-    if tensor.dtype in (torch.float16, torch.bfloat16):
-        return torch.float32
-    return tensor.dtype
 
 
 class ScoreEstimator(Protocol):

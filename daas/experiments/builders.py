@@ -6,19 +6,10 @@ from typing import Any, Mapping
 import torch
 
 from daas.diffusions import (
-    ConstantGate,
-    DensityRatioGate,
     DiffusersPipelineBundle,
     DiffusersPipelineLoader,
     EvolutionSteerer,
-    FixedThreshold,
-    GoodSetScoreEstimator,
-    KernelDensityScoreEstimator,
-    QuantileThreshold,
-    RBFKernel,
-    SecondBestThreshold,
     StepWindow,
-    TopKThreshold,
     huggingface_source,
     local_directory_source,
     make_preset,
@@ -29,6 +20,12 @@ from daas.experiments.config import (
     ExperimentConfig,
     ModelConfig,
     StepWindowConfig,
+)
+from daas.experiments.component_builders import (
+    build_gate_component,
+    build_kernel_component,
+    build_score_estimator_component,
+    build_threshold_component,
 )
 from daas.experiments.io import load_experiment_config
 from daas.experiments.rewards import build_reward_function
@@ -142,38 +139,16 @@ class ExperimentFactory:
         )
 
     def build_threshold(self, spec: ComponentSpec) -> Any:
-        normalized = spec.name.strip().lower()
-        if normalized == "fixed":
-            return FixedThreshold(**spec.kwargs)
-        if normalized == "quantile":
-            return QuantileThreshold(**spec.kwargs)
-        if normalized == "topk":
-            return TopKThreshold(**spec.kwargs)
-        if normalized == "second_best":
-            return SecondBestThreshold()
-        raise KeyError(f"unknown threshold component: {spec.name}")
+        return build_threshold_component(spec.name, spec.kwargs)
 
     def build_gate(self, spec: ComponentSpec) -> Any:
-        normalized = spec.name.strip().lower()
-        if normalized == "constant":
-            return ConstantGate(**spec.kwargs)
-        if normalized == "density_ratio":
-            return DensityRatioGate(**spec.kwargs)
-        raise KeyError(f"unknown gate component: {spec.name}")
+        return build_gate_component(spec.name, spec.kwargs)
 
     def build_kernel(self, spec: ComponentSpec) -> Any:
-        normalized = spec.name.strip().lower()
-        if normalized == "rbf":
-            return RBFKernel(**spec.kwargs)
-        raise KeyError(f"unknown kernel component: {spec.name}")
+        return build_kernel_component(spec.name, spec.kwargs)
 
     def build_score_estimator(self, spec: ComponentSpec, *, schedule: Any) -> Any:
-        normalized = spec.name.strip().lower()
-        if normalized in {"good_set_mixture", "mixture"}:
-            return GoodSetScoreEstimator(schedule=schedule, **spec.kwargs)
-        if normalized in {"kernel_density", "kde"}:
-            return KernelDensityScoreEstimator(schedule=schedule, **spec.kwargs)
-        raise KeyError(f"unknown score estimator component: {spec.name}")
+        return build_score_estimator_component(spec.name, schedule=schedule, kwargs=spec.kwargs)
 
     def build_step_window(self, config: StepWindowConfig | None, *, schedule: Any) -> Any:
         if config is None:

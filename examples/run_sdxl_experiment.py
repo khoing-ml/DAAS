@@ -18,7 +18,6 @@ from pathlib import Path
 from dataclasses import replace
 
 import torch
-import numpy as np
 
 # Allow running without installing the package
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +27,7 @@ if str(REPO_ROOT) not in sys.path:
 from daas.experiments.io import load_experiment_config
 from daas.experiments.builders import ExperimentFactory
 from daas.experiments.logging import ExperimentRunLogger
+from daas.experiments.seg_runner import SegInferenceRunner
 
 
 def resolve_device(config_device: str) -> str:
@@ -46,36 +46,6 @@ def resolve_dtype(torch_dtype: str, device: str) -> str:
         print(f"WARNING: {torch_dtype} requested on CPU, using float32 instead")
         return "float32"
     return torch_dtype
-
-
-def compute_rewards(
-    images: list,
-    prompts: list,
-    reward_fn,
-    device: str,
-) -> torch.Tensor:
-    """Compute reward scores for generated images."""
-    image_tensors = []
-    for pil_img in images:
-        if pil_img.mode != "RGB":
-            pil_img = pil_img.convert("RGB")
-        img_array = torch.from_numpy(
-            np.array(pil_img, dtype=np.float32) / 255.0
-        ).permute(2, 0, 1).unsqueeze(0)
-        image_tensors.append(img_array)
-    
-    image_batch = torch.cat(image_tensors, dim=0).to(device)
-    
-    with torch.no_grad():
-        rewards = reward_fn(
-            images=image_batch,
-            prompts=prompts,
-        )
-    
-    if rewards.ndim > 1:
-        rewards = rewards.squeeze()
-    
-    return rewards
 
 
 def main(config_path: str) -> None:
@@ -148,57 +118,69 @@ def main(config_path: str) -> None:
     
     components = factory.build_experiment(resolved_config)
     
-    bundle = components.pipeline_bundle
-    reward_fn = components.reward_fn
-    steerer = components.steerer
-    
-    logger.info(f"Running inference: {config.sampling.prompt}")
+    logger.info(f"Running SEG closed-loop inference: {config.sampling.prompt}")
     
     generator_device = "cuda" if device == "cuda" else "cpu"
-    generator = torch.Generator(device=generator_device).manual_seed(config.sampling.seed)
-    
-    # Generate image
-    result = bundle.pipeline(
-        prompt=config.sampling.prompt,
-        negative_prompt=config.sampling.negative_prompt,
-        num_inference_steps=config.sampling.num_inference_steps,
-        guidance_scale=config.sampling.guidance_scale,
-        height=config.sampling.height,
-        width=config.sampling.width,
-        generator=generator,
-        output_type="pil",
+    generator = torch.Generator(device=generator_device)
+    if config.sampling.seed is not None:
+        generator = generator.manual_seed(int(config.sampling.seed))
+
+    seg_loops = int(config.sampling.extra_kwargs.get("seg_loops", 1))
+    seg_noise_scale = float(config.sampling.extra_kwargs.get("seg_noise_scale", 0.0))
+    seg_elite_keep = int(config.sampling.extra_kwargs.get("seg_elite_keep", 0))
+    seg_use_intermediate_rewards = bool(config.sampling.extra_kwargs.get("seg_use_intermediate_rewards", True))
+    seg_inner_stein_steps = int(config.sampling.extra_kwargs.get("seg_inner_stein_steps", 1))
+    seg_intermediate_reward_output_type = str(
+        config.sampling.extra_kwargs.get("seg_intermediate_reward_output_type", "pt")
     )
-    
-    images = result.images
-    logger.info(f"Generated {len(images)} image(s)")
-    
-    # Compute rewards
-    logger.info("Computing reward scores...")
-    try:
-        rewards = compute_rewards(
-            images=images,
-            prompts=[config.sampling.prompt] * len(images),
-            reward_fn=reward_fn,
-            device=device,
-        )
-        
-        reward_stats = run_logger.log_reward_stats(rewards, prefix="reward")
-        logger.info(f"Reward stats: {reward_stats}")
-        
-        # Save generated images
-        output_dir = Path(log_dir) / run_name
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        for idx, img in enumerate(images):
-            img_path = output_dir / f"image_{idx:03d}.png"
-            img.save(img_path)
-            logger.info(f"Saved image: {img_path}")
-        
-        logger.info("Experiment completed successfully!")
-        
-    except Exception as e:
-        logger.error(f"Error computing rewards: {e}", exc_info=True)
-        raise
+
+    logger.info(
+        "SEG settings: loops=%s, elite_keep=%s, noise_scale=%s, use_ir=%s, inner_stein_steps=%s, ir_output_type=%s",
+        seg_loops,
+        seg_elite_keep,
+        seg_noise_scale,
+        seg_use_intermediate_rewards,
+        seg_inner_stein_steps,
+        seg_intermediate_reward_output_type,
+    )
+
+    runner = SegInferenceRunner(components)
+    run_result = runner.run(
+        loops=seg_loops,
+        noise_scale=seg_noise_scale,
+        elite_keep=seg_elite_keep,
+        generator=generator,
+        logger=run_logger,
+    )
+
+    reward_stats = run_logger.log_reward_stats(run_result.rewards, prefix="reward")
+    logger.info(f"Final reward stats: {reward_stats}")
+    logger.info(f"Best particle index: {run_result.best_index}")
+    logger.info(f"Best reward: {run_result.best_reward:.6f}")
+
+    # Save generated images
+    output_dir = Path(log_dir) / run_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for idx, img in enumerate(run_result.images):
+        img_path = output_dir / f"image_{idx:03d}.png"
+        img.save(img_path)
+        logger.info(f"Saved image: {img_path}")
+
+    run_logger.write_summary(
+        config=config.name,
+        status="completed",
+        best_index=run_result.best_index,
+        best_reward=run_result.best_reward,
+        reward_stats=dict(reward_stats),
+        seg_loops=seg_loops,
+        seg_elite_keep=seg_elite_keep,
+        seg_noise_scale=seg_noise_scale,
+        seg_use_intermediate_rewards=seg_use_intermediate_rewards,
+        seg_inner_stein_steps=seg_inner_stein_steps,
+        seg_intermediate_reward_output_type=seg_intermediate_reward_output_type,
+        loop_metrics=run_result.loop_metrics,
+    )
+    logger.info("Experiment completed successfully!")
 
 
 if __name__ == "__main__":

@@ -33,8 +33,8 @@ max_scale = 1.0
 name = "rbf"
 
 [steering.score_estimator]
-name = "good_set_mixture"
-temperature = 1.0
+name = "kde"
+bandwidth = 1.0
 chunk_size = 8
 
 [steering.step_window]
@@ -52,3 +52,9 @@ height = 256
 width = 256
 seed = 42
 output_type = "pt"
+seg_loops = 3
+seg_elite_keep = 1
+seg_noise_scale = 0.05
+seg_use_intermediate_rewards = true
+seg_inner_stein_steps = 2
+seg_intermediate_reward_output_type = "pt"

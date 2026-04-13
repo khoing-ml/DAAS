@@ -15,6 +15,7 @@ from daas.experiments.config import (
 )
 from daas.experiments.io import load_experiment_config, load_raw_config
 from daas.experiments.logging import ExperimentRunLogger, create_run_logger
+from daas.experiments.seg_runner import SegInferenceRunner, SegRunResult
 
 __all__ = [
     "ComponentSpec",
@@ -25,6 +26,8 @@ __all__ = [
     "ModelConfig",
     "RewardConfig",
     "SamplingConfig",
+    "SegInferenceRunner",
+    "SegRunResult",
     "SteeringConfig",
     "StepWindowConfig",
     "build_experiment_components",

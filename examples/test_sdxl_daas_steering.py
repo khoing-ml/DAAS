@@ -13,7 +13,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from daas.simple import build_simple_inference_components
-from daas.diffusions.evolution import TrajectoryRecorder
 from daas.experiments.logging import ExperimentRunLogger
 
 
@@ -100,16 +99,14 @@ def main() -> None:
 
     bundle = components.pipeline_bundle
     reward_fn = components.reward_fn
-    steerer = components.steerer
 
     generator_device = "cuda" if device == "cuda" else "cpu"
     generator = torch.Generator(device=generator_device).manual_seed(args.seed)
 
-    logger.info("Running image generation with trajectory recording...")
-    recorder = TrajectoryRecorder(detach=True, clone=True, to_cpu=False)
+    logger.info("Running image generation...")
 
     # Use pipeline's native __call__ for inference (handles prompts, latents, timesteps internally)
-    logger.info("Running reverse diffusion with trajectory recording...")
+    logger.info("Running reverse diffusion...")
     result = bundle.pipeline(
         prompt=args.prompt,
         negative_prompt=args.negative_prompt,
