@@ -48,6 +48,10 @@ tmp/
 *.pt
 *.pth
 *.bin
+
+# Local third-party clones (external dependencies)
+third_party/
+external-repos/
 *.safetensors
 *.onnx
 

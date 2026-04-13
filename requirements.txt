@@ -9,6 +9,6 @@ accelerate
 safetensors
 
 # Optional scorer integrations (install if you use corresponding scorers)
-git+https://github.com/THUDM/ImageReward.git
+# ImageReward installed locally via setup_imagereward.sh
 hpsv2
 git+https://github.com/openai/CLIP.git
