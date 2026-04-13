@@ -3,7 +3,6 @@ torch
 torchvision
 diffusers
 transformers==4.33.2
-tokenizers
 Pillow
 numpy
 accelerate
